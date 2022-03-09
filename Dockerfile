@@ -1,13 +1,106 @@
-FROM cirrusci/flutter:2.5.3
+FROM debian:11.2-slim
+
+ARG flutter_version
+ARG just_version
+ARG rust_nightly_version
+ARG rust_version
+ARG android_platform_version
+ARG android_build_tools_version="30.0.2"
+ARG android_ndk_version="21.4.7075529"
+ARG cargo_sort_version
+# comes from https://developer.android.com/studio/#command-tools
+ARG android_sdk_tools_version="8092744"
+
+USER root
 
 RUN apt-get update && apt-get install -y \
-  libclang-10-dev \
+  libclang-11-dev \
   && rm -rf /var/lib/apt/lists/*
+
+# Begin: Android SDK manager
+# See https://github.com/cirruslabs/docker-images-android/blob/aea8dd73efac23072d0d88aa688e3bba3d0f694a/sdk/tools/Dockerfile
+
+ENV ANDROID_HOME=/opt/android-sdk-linux \
+    LANG=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8 \
+    LANGUAGE=en_US:en
+
+ENV ANDROID_SDK_ROOT=$ANDROID_HOME \
+    PATH=${PATH}:${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/emulator
+
+ENV ANDROID_SDK_TOOLS_VERSION "${android_sdk_tools_version}"
+
+RUN set -o xtrace \
+    && cd /opt \
+    && apt-get update \
+    && apt-get install -y openjdk-11-jdk \
+    && apt-get install -y sudo wget zip unzip git openssh-client curl bc software-properties-common build-essential ruby-full ruby-bundler libstdc++6 libpulse0 libglu1-mesa locales lcov libsqlite3-0 --no-install-recommends \
+    # for x86 emulators
+    && apt-get install -y libxtst6 libnss3-dev libnspr4 libxss1 libasound2 libatk-bridge2.0-0 libgtk-3-0 libgdk-pixbuf2.0-0 \
+    && rm -rf /var/lib/apt/lists/* \
+    && sh -c 'echo "en_US.UTF-8 UTF-8" > /etc/locale.gen' \
+    && locale-gen \
+    && update-locale LANG=en_US.UTF-8 \
+    && wget -q https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_SDK_TOOLS_VERSION}_latest.zip -O android-sdk-tools.zip \
+    && mkdir -p ${ANDROID_HOME}/cmdline-tools/ \
+    && unzip -q android-sdk-tools.zip -d ${ANDROID_HOME}/cmdline-tools/ \
+    && mv ${ANDROID_HOME}/cmdline-tools/cmdline-tools ${ANDROID_HOME}/cmdline-tools/latest \
+    && chown -R root:root $ANDROID_HOME \
+    && rm android-sdk-tools.zip \
+    && echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers \
+    && yes | sdkmanager --licenses \
+    && wget -O /usr/bin/android-wait-for-emulator https://raw.githubusercontent.com/travis-ci/travis-cookbooks/master/community-cookbooks/android-sdk/files/default/android-wait-for-emulator \
+    && chmod +x /usr/bin/android-wait-for-emulator \
+    && touch /root/.android/repositories.cfg \
+    && sdkmanager platform-tools \
+    && mkdir -p /root/.android \
+    && touch /root/.android/repositories.cfg
+
+# End: Android SDK manager
+# ------------------------
+
+# Begin: Android SDK + NDK
+# See https://github.com/cirruslabs/docker-images-android/blob/aea8dd73efac23072d0d88aa688e3bba3d0f694a/sdk/30/Dockerfile
+
+ENV ANDROID_PLATFORM_VERSION "${android_platform_version}"
+ENV ANDROID_BUILD_TOOLS_VERSION "${android_build_tools_version}"
+ENV ANDROID_NDK_VERSION "${android_ndk_version}"
+ENV ANDROID_NDK_HOME "/opt/android-sdk-linux/ndk/${android_ndk_version}"
+ENV PATH ${PATH}:${ANDROID_NDK_HOME}
+
+RUN yes | sdkmanager \
+    "platforms;android-$ANDROID_PLATFORM_VERSION" \
+    "build-tools;$ANDROID_BUILD_TOOLS_VERSION" \
+    "ndk;$ANDROID_NDK_VERSION"
+
+# End: Android SDK + NDK
+# ----------------------
+
+# Begin: Flutter SDK
+# Taken from https://github.com/cirruslabs/docker-images-flutter/blob/9982f37ed1b44563800592cb2a92c897cb01f6cd/sdk/Dockerfile
+
+ENV FLUTTER_HOME=${HOME}/sdks/flutter \
+    FLUTTER_VERSION=$flutter_version
+ENV FLUTTER_ROOT=$FLUTTER_HOME
+
+ENV PATH ${PATH}:${FLUTTER_HOME}/bin:${FLUTTER_HOME}/bin/cache/dart-sdk/bin
+
+RUN git clone --depth 1 --branch ${FLUTTER_VERSION} https://github.com/flutter/flutter.git ${FLUTTER_HOME}
+
+RUN yes | flutter doctor --android-licenses \
+    && flutter doctor \
+    && chown -R root:root ${FLUTTER_HOME}
+
+# End: Flutter SDK
+# ----------------
+
+# Begin: Rust base
+# Taken from https://github.com/rust-lang/docker-rust/blob/878a3bd2f3d92e51b9984dba8f8fd8881367a063/1.55.0/buster/Dockerfile
 
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH \
-    RUST_VERSION=1.55.0
+    RUST_VERSION="${rust_version}"
 
 RUN set -eux; \
     dpkgArch="$(dpkg --print-architecture)"; \
@@ -29,29 +122,18 @@ RUN set -eux; \
     cargo --version; \
     rustc --version;
 
+# End: Rust base
+# --------------
+
+
+# Begin: Additional Rust requirements
+# Added by us
+
 RUN set -eux; \
-  cargo install \
-    just \
-    cargo-sort \
-    ; \
-   cargo install --git https://github.com/xaynetwork/cargo-ndk.git cargo-ndk ;  \
-   cargo install \
-     --git https://github.com/xaynetwork/xayn_async_bindgen.git \
-     async-bindgen-gen-dart; \
-  rm -rf /usr/local/cargo/{.package-cache,registry};
+  rustup toolchain install "${rust_nightly_version}" --component rustfmt --profile minimal; \
+  rustc +${rust_nightly_version} --version
 
-ENV ANDROID_NDK_HOME /opt/android-ndk
-ENV ANDROID_NDK_VERSION r21
-
-RUN mkdir /opt/android-ndk-tmp && \
-    cd /opt/android-ndk-tmp && \
-    wget -q https://dl.google.com/android/repository/android-ndk-${ANDROID_NDK_VERSION}-linux-x86_64.zip && \
-    unzip -q android-ndk-${ANDROID_NDK_VERSION}-linux-x86_64.zip && \
-    mv ./android-ndk-${ANDROID_NDK_VERSION} ${ANDROID_NDK_HOME} && \
-    cd ${ANDROID_NDK_HOME} && \
-    rm -rf /opt/android-ndk-tmp
-
-ENV PATH ${PATH}:${ANDROID_NDK_HOME}
+RUN rustup component add clippy
 
 RUN rustup target add \
 	aarch64-linux-android \
@@ -59,6 +141,12 @@ RUN rustup target add \
 	armv7-linux-androideabi \
 	i686-linux-android
 
-RUN rustup toolchain install "nightly-2021-09-09" --component rustfmt  --profile minimal
+RUN set -eux; \
+  cargo install just --version="${just_version}" ; \
+  cargo install cargo-sort --version="${cargo_sort_version}" ; \
+  cargo install --git https://github.com/xaynetwork/cargo-ndk.git cargo-ndk ;  \
+  cargo install --git https://github.com/xaynetwork/xayn_async_bindgen.git async-bindgen-gen-dart; \
+  rm -rf /usr/local/cargo/{.package-cache,registry};
 
-RUN rustup component add clippy
+# End: Additional Rust requirements
+# ---------------------------------
