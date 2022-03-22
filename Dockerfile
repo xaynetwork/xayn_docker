@@ -15,6 +15,7 @@ USER root
 
 RUN apt-get update && apt-get install -y \
   libclang-11-dev \
+  rsync \
   && rm -rf /var/lib/apt/lists/*
 
 # Begin: Android SDK manager
