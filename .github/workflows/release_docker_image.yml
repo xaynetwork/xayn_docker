@@ -42,4 +42,4 @@ jobs:
 
       - name: docker push
         run: |
-          docker push "${{ env.image_name }}:release"
+          docker push "${{ env.image_name }}:${{ env.release_tag }}"
