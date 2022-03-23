@@ -8,6 +8,7 @@ permissions:
 
 env:
   image_name: xaynetci/yellow
+  release_tag: v1
 
 jobs:
   release:
@@ -37,7 +38,7 @@ jobs:
       
       - name: tag as release
         run: |
-          docker tag "${{ env.image_name }}:${{ env.image_tag }}" "${{ env.image_name }}:release"
+          docker tag "${{ env.image_name }}:${{ env.image_tag }}" "${{ env.image_name }}:${{ env.release_tag }}"
 
       - name: docker push
         run: |
