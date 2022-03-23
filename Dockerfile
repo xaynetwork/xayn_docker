@@ -8,6 +8,7 @@ ARG android_platform_version
 ARG android_build_tools_version="30.0.2"
 ARG android_ndk_version="21.4.7075529"
 ARG cargo_sort_version
+ARG cargo_ndk_version="2.7.0"
 # comes from https://developer.android.com/studio/#command-tools
 ARG android_sdk_tools_version="8092744"
 
@@ -145,7 +146,7 @@ RUN rustup target add \
 RUN set -eux; \
   cargo install just --version="${just_version}" ; \
   cargo install cargo-sort --version="${cargo_sort_version}" ; \
-  cargo install --git https://github.com/xaynetwork/cargo-ndk.git cargo-ndk ;  \
+  cargo install cargo-ndk --version="${cargo_ndk_version}"; \
   cargo install --git https://github.com/xaynetwork/xayn_async_bindgen.git async-bindgen-gen-dart; \
   rm -rf /usr/local/cargo/{.package-cache,registry};
 
