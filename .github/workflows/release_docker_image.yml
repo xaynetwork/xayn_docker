@@ -31,14 +31,6 @@ jobs:
           IMAGE_TAG="$(git rev-parse --short "$GITHUB_SHA")"
           echo "image_tag=${IMAGE_TAG}" >> $GITHUB_ENV
 
-      - name: docker pull
-        run: |
-          docker pull "${{ env.image_name }}:${{ env.image_tag }}"
-      
-      - name: tag as release
-        run: |
-          docker tag "${{ env.image_name }}:${{ env.image_tag }}"
-
       - name: docker push
         run: |
-          docker push "${{ env.image_name }}:${{ env.release_tag }}"
+          docker push "${{ env.image_name }}:${{ env.image_tag }}"
