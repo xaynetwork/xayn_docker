@@ -42,6 +42,5 @@ jobs:
         run: ./docker-build.sh -t "${{ env.image_name }}:${{ env.image_tag }}" .
 
       - name: docker push
-        if: github.ref == 'refs/heads/main'
         run: |
           docker push "${{ env.image_name }}:${{ env.image_tag }}"
