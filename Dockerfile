@@ -6,7 +6,7 @@ ARG rust_nightly_version
 ARG rust_version
 ARG android_platform_version
 ARG android_build_tools_version="30.0.2"
-ARG android_ndk_version="21.4.7075529"
+ARG android_ndk_version="23.1.7779620"
 ARG cargo_sort_version
 ARG cargo_ndk_version="2.7.0"
 # comes from https://developer.android.com/studio/#command-tools
