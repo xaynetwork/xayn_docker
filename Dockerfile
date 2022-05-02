@@ -145,6 +145,13 @@ RUN rustup target add \
 	armv7-linux-androideabi \
 	i686-linux-android
 
+RUN rustup "${rust_nightly_version}" component add rust-src
+RUN rustup "${rust_nightly_version}" target add \
+	aarch64-linux-android \
+	x86_64-linux-android \
+	armv7-linux-androideabi \
+	i686-linux-android
+
 RUN set -eux; \
   cargo install just --version="${just_version}" ; \
   cargo install cargo-sort --version="${cargo_sort_version}" ; \
