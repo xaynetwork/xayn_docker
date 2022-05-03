@@ -4,7 +4,8 @@ set -eux
 
 source discovery_engine/.env
 
-RUST_VERSION="1.60.0"
+RUST_TOOLCHAIN_TOML="discovery_engine/discovery_engine_core/rust-toolchain.toml"
+RUST_VERSION=$(cat $RUST_TOOLCHAIN_TOML | grep -oP "channel.*?\"\K.*(?=\")")
 CARGO_SORT_VERSION="1.0.7"
 
 docker build \
