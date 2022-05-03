@@ -4,7 +4,7 @@ set -eux
 
 source discovery_engine/.env
 
-RUST_VERSION="1.55.0"
+RUST_VERSION="1.60.0"
 CARGO_SORT_VERSION="1.0.7"
 
 docker build \
