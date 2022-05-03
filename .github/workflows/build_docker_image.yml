@@ -2,6 +2,17 @@ name: Build docker image
 
 on:
   push:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: 'Push image to the registry'
+        required: false
+        default: false
+        type: boolean
+      engine_branch:
+        description: 'Branch of the discovery engine to use for the .env file'
+        required: false
+        default: ''
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,13 +30,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout repository and submodules
-        uses: actions/checkout@v2
-        with:
-          submodules: recursive
+        uses: actions/checkout@v3
 
       - name: Login to Docker Hub
         uses: docker/login-action@v1
-        if: github.ref == 'refs/heads/main'
+        if: github.event.inputs.push
         with:
           username: "${{ secrets.DOCKERHUB_USERNAME }}"
           password: "${{ secrets.DOCKERHUB_TOKEN }}"
@@ -33,15 +42,34 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v1
 
+      - name: Determine discovery engine branch name
+        run: |
+          BRANCH="${{ github.event.engine_branch }}"
+          if [ -z "${BRANCH}" ]
+          then
+            ENGINE_REF="refs/heads/main"
+          else
+            ENGINE_REF="refs/heads/${BRANCH}"
+          fi
+          echo "engine_ref=${ENGINE_REF}" >> $GITHUB_ENV
+
+      - name: Checkout discovery engine
+        uses: actions/checkout@v3
+        with:
+            repository: xaynetwork/xayn_discovery_engine
+            ref: ${{ env.engine_ref }}
+            path: "discovery_engine"
+
       - name: Determine image tag
         run: |
-          IMAGE_TAG="$(git rev-parse --short "$GITHUB_SHA")"
-          echo "image_tag=${IMAGE_TAG}" >> $GITHUB_ENV
+          DOCKER_TAG="$(git rev-parse --short "$GITHUB_SHA")"
+          ENGINE_TAG="$(git rev-parse --short "$GITHUB_SHA")"
+          echo "image_tag=${DOCKER_TAG}_${ENGINE_TAG}" >> $GITHUB_ENV
 
       - name: docker build
         run: ./docker-build.sh -t "${{ env.image_name }}:${{ env.image_tag }}" .
 
       - name: docker push
-        if: github.ref == 'refs/heads/main'
+        if: github.event.inputs.push
         run: |
           docker push "${{ env.image_name }}:${{ env.image_tag }}"
