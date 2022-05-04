@@ -1,3 +1,4 @@
 [submodule "discovery_engine"]
 	path = discovery_engine
 	url = https://github.com/xaynetwork/xayn_discovery_engine.git
+	branch = gnews_ndk23
