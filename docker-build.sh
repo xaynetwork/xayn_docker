@@ -2,10 +2,7 @@
 
 set -eux
 
-source discovery_engine/.env
-
-RUST_VERSION="1.60.0"
-CARGO_SORT_VERSION="1.0.7"
+source engine_env
 
 docker build \
     --build-arg flutter_version="${FLUTTER_VERSION}" \
