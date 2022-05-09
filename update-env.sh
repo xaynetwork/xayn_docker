@@ -2,8 +2,6 @@
 
 set -eux
 
-CARGO_SORT_VERSION="1.0.7"
-
 repodir=$(mktemp -d)
 
 if [ -z "${1+x}"]; then
