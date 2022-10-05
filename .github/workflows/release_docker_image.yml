@@ -8,7 +8,7 @@ permissions:
 
 env:
   image_name: xaynetci/yellow
-  release_tag: v4
+  release_tag: v5
 
 jobs:
   release:
